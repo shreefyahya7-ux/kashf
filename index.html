@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f4fd8">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>كشف الحضور</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#16213e;--mut:#6b7691;--pri:#1f4fd8;--ok:#0f9d58;--no:#d93025;--warn:#e8710a;--line:#e3e7f1}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;font-size:16px;padding-bottom:40px}
+header{position:sticky;top:0;z-index:5;background:var(--pri);color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px}
+header h1{font-size:18px;margin:0;flex:1}
+header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:10px;padding:6px 10px;font-size:14px}
+#dot{width:12px;height:12px;border-radius:50%;background:#9aa;display:inline-block;border:2px solid #fff}
+nav{position:sticky;top:46px;z-index:4;background:#fff;display:flex;overflow-x:auto;border-bottom:1px solid var(--line)}
+nav button{flex:0 0 auto;border:0;background:none;padding:12px 14px;font-size:15px;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
+nav button.on{color:var(--pri);border-color:var(--pri);font-weight:700}
+main{max-width:720px;margin:0 auto;padding:10px}
+.card{background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+input,select,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:110px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}.row>.fit{flex:0 0 auto}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600}
+.btn.sec{background:#e9eefc;color:var(--pri)}.btn.red{background:#fde8e6;color:var(--no)}.btn.grn{background:var(--ok)}
+.btn.sm{padding:6px 10px;font-size:14px}
+.stu{display:flex;align-items:center;gap:8px;padding:12px 10px;border-bottom:1px solid var(--line);background:#fff}
+.stu:active{background:#f0f4ff}
+.stu.p{background:#e6f6ec}
+.stu .nm{flex:1;font-weight:600}
+.stu .tick{width:26px;height:26px;border-radius:50%;border:2px solid #c5cbe0;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex:0 0 auto}
+.stu.p .tick{background:var(--ok);border-color:var(--ok)}
+.ch{font-size:12px;font-style:normal;border-radius:999px;padding:3px 8px;white-space:nowrap;font-weight:700}
+.ch.ok{background:#d9f2e3;color:#0b7a43}.ch.no{background:#fde8e6;color:var(--no)}.ch.warn{background:#fdebd3;color:#b45a00}.ch.ok2{background:#eaf0ff;color:var(--pri)}
+.chips{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+.stat{display:flex;justify-content:space-between;font-weight:700;margin:6px 2px}
+.mut{color:var(--mut);font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
+th{color:var(--mut);font-weight:600;font-size:13px}
+.modal{position:fixed;inset:0;background:rgba(10,20,50,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.modal>div{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:14px;max-height:88vh;overflow:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#16213e;color:#fff;padding:10px 16px;border-radius:12px;z-index:30;max-width:90%}
+details{background:#fff;border-radius:12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+summary{padding:12px;font-weight:700;display:flex;justify-content:space-between;cursor:pointer}
+.warnbox{background:#fff6e5;border:1px solid #f3d28a;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:14px}
+h3{margin:4px 0 8px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>كشف الحضور</h1>
+  <button id="meBtn" title="اسمي"></button>
+  <button id="instBtn" class="hide">⬇ تثبيت</button>
+  <button id="dotBtn" title="حالة الاتصال"><span id="dot"></span></button>
+  <button id="setBtn">⚙ الإعدادات</button>
+</header>
+<nav id="nav"></nav>
+<main id="main"></main>
+<div id="modalRoot"></div>
+
+<script>/*CFG*/</script>
+<script>
+/* ============ أدوات عامة ============ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
+const SV=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parseISO=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const off=d=>{const w=d.getDay();return w===4||w===5}; // الخميس والجمعة إجازة
+const monthOf=s=>s.slice(0,7);
+const prevMonth=m=>{const[y,mo]=m.split('-').map(Number);const d=new Date(y,mo-2,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
+const MN=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const mLabel=m=>{const[y,mo]=m.split('-');return MN[+mo-1]+' '+y};
+const money=n=>(Math.round((+n||0)*100)/100).toLocaleString('en');
+function norm(s){return String(s||'').replace(/[ً-ْـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim().toLowerCase()}
+function cleanName(s){return String(s||'').replace(/[|]/g,' ').replace(/\s+/g,' ').trim()}
+function lev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=[...Array(n+1).keys()];for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2600)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+
+/* ============ الحالة المحلية ============ */
+let DB=LS('kd2')||{data:{},dirty:{},cursor:0,off:0};
+let CONN=LS('kconn');   // {u:رابط السكربت, k:كود الفريق}
+let ME=LS('kname')||'';
+let ADMIN=null;         // كلمة سر المدير (في الذاكرة بس)
+let IDX=null;
+function save(){if(!SV('kd2',DB))toast('⚠ مساحة التخزين ممتلئة')}
+const now=()=>Date.now()+(DB.off||0);
+
+function setKey(key,v){
+  DB.data[key]={v:v===undefined?null:v,ts:now(),by:ME};
+  DB.dirty[key]=1; IDX=null; save(); schedSync();
+}
+const getKey=k=>DB.data[k]&&DB.data[k].v!=null?DB.data[k].v:null;
+
+/* ============ الفهرس (بيتبني من البيانات) ============ */
+function idx(){
+  if(IDX)return IDX;
+  const I={stu:{},del:{},att:{},attM:{},pay:{},exp:[],adv:[],mgr:[]};
+  for(const k in DB.data){
+    const e=DB.data[k];if(e.v==null)continue;const p=k.split('|');
+    switch(p[0]){
+      case 's':(e.v.a===0?I.del:I.stu)[p[1]]={id:p[1],n:e.v.n};break;
+      case 'a':if(e.v===1){(I.att[p[1]]=I.att[p[1]]||{})[p[2]]=1;const m=monthOf(p[1]);((I.attM[m]=I.attM[m]||{})[p[2]]=(I.attM[m][p[2]]||0)+1)}break;
+      case 'p':(I.pay[p[1]]=I.pay[p[1]]||{})[p[2]]=Object.assign({by:e.by},e.v);break;
+      case 'x':I.exp.push(Object.assign({id:p[1],by:e.by},e.v));break;
+      case 'v':I.adv.push(Object.assign({id:p[1],by:e.by},e.v));break;
+      case 'm':I.mgr.push(Object.assign({id:p[1],by:e.by},e.v));break;
+    }
+  }
+  I.list=Object.values(I.stu).sort((a,b)=>a.n.localeCompare(b.n,'ar'));
+  I.dlist=Object.values(I.del).sort((a,b)=>a.n.localeCompare(b.n,'ar'));
+  return IDX=I;
+}
+const fee=()=>{const c=getKey('cfg|fee');return c&&c.v?c.v:''};
+
+/* ============ الطلاب: إضافة/تعديل/حذف بدون تكرار ============ */
+function similar(name,ignoreId){
+  const n=norm(name),I=idx(),out=[];
+  for(const s of I.list){if(s.id===ignoreId)continue;const m=s.id;
+    if(m===n)continue;
+    const ta=n.split(' '),tb=m.split(' ');
+    const sub=(a,b)=>a.length>=2&&a.every(t=>b.includes(t));
+    if(sub(ta,tb)||sub(tb,ta)||(Math.abs(n.length-m.length)<=2&&lev(n,m)<=2))out.push(s.n)}
+  return out.slice(0,3);
+}
+function addStudent(raw,opts={}){
+  const n=cleanName(raw);if(!n)return {r:'empty'};
+  const id=norm(n);const I=idx();
+  if(I.stu[id])return {r:'dup',n:I.stu[id].n};
+  if(!opts.force){const sim=similar(n);if(sim.length)return {r:'similar',sim}}
+  setKey('s|'+id,{n,a:1});return {r:'ok'};
+}
+function renameStudent(id,raw){
+  const n=cleanName(raw);if(!n)return 'empty';
+  const I=idx(),nid=norm(n);
+  if(nid!==id&&I.stu[nid])return 'dup';
+  setKey('s|'+id,{n,a:1});return 'ok';
+}
+function delStudent(id){const s=idx().stu[id];if(s)setKey('s|'+id,{n:s.n,a:0})}
+function restoreStudent(id){const s=idx().del[id];if(s)setKey('s|'+id,{n:s.n,a:1})}
+
+/* ============ المزامنة التلقائية ============ */
+let syncing=false,syncT=null,lastOk=LS('klast')||0,lastErr='',busySince=0;
+function pendingN(){return Object.keys(DB.dirty).length}
+function updDot(){
+  const d=$('#dot');let c='#9aa';
+  if(!CONN)c='#9aa';else if(syncing)c='#f5b400';else if(lastErr)c='#e53935';else if(pendingN())c='#f5b400';else c='#34c759';
+  d.style.background=c;
+}
+function statusText(){
+  if(!CONN)return 'غير متصل بالشيت (الشغل محفوظ على الجهاز بس).';
+  if(!navigator.onLine)return 'أوفلاين — '+pendingN()+' تعديل مستني يتبعت أول ما النت يرجع.';
+  if(syncing)return 'بيتزامن...';
+  if(lastErr)return 'في مشكلة في الاتصال ('+lastErr+') — هيحاول تاني لوحده.';
+  if(pendingN())return pendingN()+' تعديل لسه ما اتبعتش.';
+  return 'كل شيء متزامن ✔'+(lastOk?' — آخر مرة '+new Date(lastOk).toLocaleTimeString('ar-EG'):'');
+}
+async function api(method,params,body){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),30000);
+  try{
+    let url=CONN.u,opt={signal:c.signal,redirect:'follow'};
+    if(method==='GET'){url+='?'+new URLSearchParams(Object.assign({k:CONN.k},params)).toString()}
+    else{opt.method='POST';opt.headers={'Content-Type':'text/plain;charset=utf-8'};opt.body=JSON.stringify(Object.assign({k:CONN.k},body))}
+    const r=await fetch(url,opt);const j=await r.json();return j;
+  }finally{clearTimeout(t)}
+}
+function mergeRows(rows){
+  let ch=false;
+  for(const r of rows){
+    const k=r[0];let v;try{v=JSON.parse(r[1])}catch(e){v=null}
+    const ts=+r[2],by=String(r[3]||''),c=DB.data[k];
+    if(!c||ts>c.ts||(ts===c.ts&&by>String(c.by||''))){DB.data[k]={v,ts,by};delete DB.dirty[k];ch=true}
+  }
+  return ch;
+}
+function schedSync(){updDot();clearTimeout(syncT);syncT=setTimeout(sync,1500)}
+async function sync(){
+  if(!CONN||!navigator.onLine){updDot();return}
+  if(syncing){if(Date.now()-busySince>60000)syncing=false;else return}
+  syncing=true;busySince=Date.now();updDot();let changed=false;
+  try{
+    for(let round=0;round<6;round++){
+      const keys=Object.keys(DB.dirty);
+      if(keys.length){
+        const items=keys.slice(0,300).map(k=>({key:k,v:DB.data[k].v,ts:DB.data[k].ts}));
+        const r=await api('POST',null,{a:'push',by:ME,items,ap:ADMIN||''});
+        if(!r.ok)throw new Error(r.err==='pass'?'كود الفريق غلط':(r.err||'push'));
+        items.forEach(i=>{if(DB.data[i.key]&&DB.data[i.key].ts===i.ts)delete DB.dirty[i.key]});
+        (r.rejected||[]).forEach(k=>{delete DB.dirty[k];delete DB.data[k];changed=true});
+      }
+      const p=await api('GET',{a:'pull',c:DB.cursor});
+      if(!p.ok)throw new Error(p.err==='pass'?'كود الفريق غلط':(p.err||'pull'));
+      if(p.now)DB.off=p.now-Date.now();
+      if(p.rows.length&&mergeRows(p.rows))changed=true;
+      DB.cursor=p.cursor;
+      if(!Object.keys(DB.dirty).length)break;
+    }
+    lastOk=Date.now();SV('klast',lastOk);lastErr='';
+  }catch(e){lastErr=(e.name==='AbortError')?'بطيء':(e.message||'خطأ')}
+  syncing=false;IDX=null;save();updDot();
+  if(changed)refresh();
+  if(Object.keys(DB.dirty).length&&!lastErr)schedSync();
+}
+setInterval(()=>sync(),30000);
+addEventListener('online',()=>sync());addEventListener('offline',updDot);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+
+/* ============ الواجهة ============ */
+const TABS=[['day','اليوم'],['rep','تقرير الشهر'],['sub','الاشتراكات'],['exp','المصروفات'],['adv','السلف'],['mgr','للمدير'],['stu','الطلاب']];
+let TAB=LS('ktab')||'day';
+let DAY=null,Q='',MON=monthOf(iso(new Date()));
+function today(){let d=new Date();while(off(d))d.setDate(d.getDate()-1);return iso(d)}
+DAY=today();
+
+function drawNav(){
+  $('#nav').innerHTML=TABS.map(t=>`<button data-t="${t[0]}" class="${TAB===t[0]?'on':''}">${t[1]}</button>`).join('');
+}
+$('#nav').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;SV('ktab',TAB);Q='';refresh()};
+function refresh(){$('#main').onclick=null;drawNav();updDot();({day:vDay,rep:vRep,sub:vSub,exp:()=>vEntries('exp'),adv:()=>vEntries('adv'),mgr:()=>vEntries('mgr'),stu:vStu})[TAB]()}
+function shiftDay(dir){let d=parseISO(DAY);do{d.setDate(d.getDate()+dir)}while(off(d));DAY=iso(d);MON=monthOf(DAY)}
+
+/* ---- اليوم ---- */
+function chipsFor(id,m,I){
+  const paid=I.pay[m]&&I.pay[m][id],pm=prevMonth(m);
+  const prevPaid=I.pay[pm]&&I.pay[pm][id],prevAtt=(I.attM[pm]||{})[id]>0;
+  let h=paid?'<i class="ch ok">اشتراك ✓</i>':'<i class="ch no">لم يدفع</i>';
+  if(prevPaid)h+='<i class="ch ok2">دفع الماضي ✓</i>';
+  else if(prevAtt)h+='<i class="ch warn">الماضي ناقص</i>';
+  return h;
+}
+function rowHTML(s,I){
+  const p=I.att[DAY]&&I.att[DAY][s.id];
+  return `<div class="stu ${p?'p':''}" data-id="${esc(s.id)}"><div class="tick">${p?'✓':''}</div><div class="nm">${esc(s.n)}</div><div class="chips pay">${chipsFor(s.id,monthOf(DAY),I)}</div></div>`;
+}
+function vDay(){
+  const I=idx(),dayN=Object.keys(I.att[DAY]||{}).filter(id=>I.stu[id]).length;
+  const wd=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'][parseISO(DAY).getDay()];
+  $('#main').innerHTML=`
+  <div class="card">
+    <div class="row"><button class="btn sec fit" id="nx">◀</button><input type="date" id="dp" value="${DAY}"><button class="btn sec fit" id="pv">▶</button></div>
+    <div class="stat"><span>${wd}</span><span id="cnt">حضر ${dayN} من ${I.list.length}</span></div>
+    <input id="q" placeholder="ابحث باسم الطالب..." value="${esc(Q)}" autocomplete="off">
+  </div>
+  <div class="card" style="padding:0;overflow:hidden" id="lst"></div>`;
+  $('#nx').onclick=()=>{shiftDay(1);vDay()};$('#pv').onclick=()=>{shiftDay(-1);vDay()};
+  $('#dp').onchange=e=>{if(!e.target.value)return;let d=parseISO(e.target.value);if(off(d)){toast('الخميس والجمعة إجازة');while(off(d))d.setDate(d.getDate()-1)}DAY=iso(d);MON=monthOf(DAY);vDay()};
+  $('#q').oninput=e=>{Q=e.target.value;drawList()};
+  $('#lst').onclick=onDayClick;drawList();
+}
+function drawList(){
+  const I=idx(),q=norm(Q),toks=q?q.split(' '):[];
+  const L=I.list.filter(s=>toks.every(t=>s.id.includes(t)));
+  $('#lst').innerHTML=L.length?L.map(s=>rowHTML(s,I)).join(''):`<div class="card mut">${I.list.length?'مفيش اسم بالشكل ده':'لسه مفيش طلاب — ضيفهم من تبويب «الطلاب»'}</div>`;
+}
+function onDayClick(e){
+  const row=e.target.closest('.stu');if(!row)return;const id=row.dataset.id,I=idx();
+  if(e.target.closest('.pay')){payDialog(id);return}
+  const cur=!!(I.att[DAY]&&I.att[DAY][id]);
+  setKey('a|'+DAY+'|'+id,cur?null:1);
+  const J=idx();row.outerHTML=rowHTML(J.stu[id],J);
+  $('#cnt').textContent='حضر '+Object.keys(J.att[DAY]||{}).filter(x=>J.stu[x]).length+' من '+J.list.length;
+}
+
+/* ---- نافذة الدفع (الشهر الحالي والسابق) ---- */
+function modal(html){const r=$('#modalRoot');r.innerHTML=`<div class="modal"><div>${html}</div></div>`;r.firstChild.onclick=e=>{if(e.target===r.firstChild)closeM()};return r.firstChild.firstChild}
+function closeM(){$('#modalRoot').innerHTML=''}
+function payDialog(id,month){
+  const I=idx(),s=I.stu[id];if(!s)return;
+  const m=month||monthOf(DAY),ms=[m,prevMonth(m)];
+  const f=fee();
+  const box=modal(`<h3>${esc(s.n)}</h3>
+  ${ms.map((mm,i)=>{const p=I.pay[mm]&&I.pay[mm][id];
+    return `<div class="card" style="border:1px solid var(--line);box-shadow:none"><div class="stat"><span>${mLabel(mm)}${i?' (الشهر اللي فات)':''}</span>${p?'<i class="ch ok">مدفوع '+money(p.amt)+'</i>':'<i class="ch no">لم يدفع</i>'}</div>
+    ${p?`<div class="mut">اتسجل ${esc(p.dt||'')} ${p.by?'بواسطة '+esc(p.by):''}</div><button class="btn red sm" data-un="${mm}" style="margin-top:6px">إلغاء الدفع</button>`
+       :`<div class="row"><input type="number" inputmode="decimal" id="am${i}" placeholder="المبلغ" value="${f}"><button class="btn grn fit" data-pay="${mm}" data-i="${i}">تسجيل الدفع</button></div>`}</div>`}).join('')}
+  <button class="btn sec" style="width:100%" id="cl">إغلاق</button>`);
+  box.querySelector('#cl').onclick=closeM;
+  box.onclick=e=>{
+    const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.pay){const a=parseFloat($('#am'+b.dataset.i).value);if(!(a>0)){toast('اكتب المبلغ');return}
+      if(idx().pay[b.dataset.pay]&&idx().pay[b.dataset.pay][id]){toast('الدفع متسجل قبل كده');return}
+      setKey('p|'+b.dataset.pay+'|'+id,{amt:a,dt:iso(new Date())});closeM();refresh();toast('اتسجل ✔')}
+    else if(b.dataset.un){if(confirm('إلغاء دفع '+mLabel(b.dataset.un)+'؟')){setKey('p|'+b.dataset.un+'|'+id,null);closeM();refresh()}}
+  };
+}
+function pickStudent(cb){
+  let q='';
+  const box=modal(`<h3>اختار الطالب</h3><input id="pq" placeholder="ابحث..." autocomplete="off"><div id="pl" style="margin-top:8px"></div><button class="btn sec" style="width:100%;margin-top:8px" id="cl">إغلاق</button>`);
+  const draw=()=>{const I=idx(),t=norm(q).split(' ').filter(Boolean);const L=I.list.filter(s=>t.every(x=>s.id.includes(x))).slice(0,40);
+    box.querySelector('#pl').innerHTML=L.map(s=>`<div class="stu" data-id="${esc(s.id)}"><div class="nm">${esc(s.n)}</div></div>`).join('')};
+  box.querySelector('#pq').oninput=e=>{q=e.target.value;draw()};draw();
+  box.querySelector('#cl').onclick=closeM;
+  box.querySelector('#pl').onclick=e=>{const r=e.target.closest('.stu');if(r){closeM();cb(r.dataset.id)}};
+}
+
+/* ---- تقرير الشهر ---- */
+function vRep(){
+  const I=idx(),att=I.attM[MON]||{},days=Object.keys(I.att).filter(d=>monthOf(d)===MON&&Object.keys(I.att[d]).length).length;
+  const q=norm(Q).split(' ').filter(Boolean);
+  const L=I.list.filter(s=>q.every(t=>s.id.includes(t)));
+  $('#main').innerHTML=`<div class="card"><div class="row"><input type="month" id="mp" value="${MON}"></div>
+  <div class="stat"><span>أيام فيها حضور: ${days}</span><span>الطلاب: ${I.list.length}</span></div>
+  <input id="q" placeholder="ابحث..." value="${esc(Q)}"></div>
+  <div class="card"><table><tr><th>الاسم</th><th>الحضور</th><th>الاشتراك</th></tr>
+  ${L.map(s=>{const p=I.pay[MON]&&I.pay[MON][s.id];return `<tr><td>${esc(s.n)}</td><td>${att[s.id]||0}</td><td>${p?'<i class="ch ok">'+money(p.amt)+'</i>':'<i class="ch no">—</i>'}</td></tr>`}).join('')}</table></div>`;
+  $('#mp').onchange=e=>{if(e.target.value){MON=e.target.value;vRep()}};
+  $('#q').oninput=e=>{Q=e.target.value;vRep();const i=$('#q');i.focus();i.setSelectionRange(Q.length,Q.length)};
+}
+
+/* ---- الاشتراكات ---- */
+function vSub(){
+  const I=idx(),P=I.pay[MON]||{};
+  const rows=Object.keys(P).filter(id=>I.stu[id]||I.del[id]).map(id=>({id,n:(I.stu[id]||I.del[id]).n,p:P[id]})).sort((a,b)=>a.n.localeCompare(b.n,'ar'));
+  const q=norm(Q).split(' ').filter(Boolean);
+  const L=rows.filter(r=>q.every(t=>norm(r.n).includes(t)));
+  const tot=rows.reduce((a,r)=>a+(+r.p.amt||0),0);
+  $('#main').innerHTML=`<div class="card"><div class="row"><input type="month" id="mp" value="${MON}"></div>
+  <div class="stat"><span>عدد الدافعين: ${rows.length}</span><span>الإجمالي: ${money(tot)}</span></div>
+  <div class="row"><input id="q" placeholder="ابحث في الدافعين..." value="${esc(Q)}"><button class="btn fit" id="addp">+ تسجيل دفع</button></div></div>
+  <div class="card"><table><tr><th>الاسم</th><th>المبلغ</th><th>التاريخ</th><th></th></tr>
+  ${L.map(r=>`<tr><td>${esc(r.n)}<div class="mut">${esc(r.p.by||'')}</div></td><td>${money(r.p.amt)}</td><td>${esc(r.p.dt||'')}</td><td><button class="btn red sm" data-un="${esc(r.id)}">✕</button></td></tr>`).join('')||'<tr><td class="mut">لا يوجد</td></tr>'}</table></div>`;
+  $('#mp').onchange=e=>{if(e.target.value){MON=e.target.value;vSub()}};
+  $('#q').oninput=e=>{Q=e.target.value;vSub();const i=$('#q');i.focus();i.setSelectionRange(Q.length,Q.length)};
+  $('#addp').onclick=()=>pickStudent(id=>payDialog(id,MON));
+  $('#main').onclick=e=>{const b=e.target.closest('[data-un]');if(b&&confirm('إلغاء هذا الدفع؟')){setKey('p|'+MON+'|'+b.dataset.un,null);vSub()}};
+}
+
+/* ---- مصروفات / سلف / للمدير ---- */
+const ENT={
+  exp:{pre:'x',title:'المصروفات',f:[['t','البيان','text']],tot:'إجمالي المصروفات'},
+  adv:{pre:'v',title:'السلف',f:[['who','اسم الشخص','text','who'],['note','ملاحظة (اختياري)','text']],tot:'إجمالي السلف'},
+  mgr:{pre:'m',title:'اللي اتسلّم للمدير',f:[['note','ملاحظة (اختياري)','text']],tot:'إجمالي المسلّم للمدير'}
+};
+function vEntries(t){
+  const C=ENT[t],I=idx(),all=I[t].filter(x=>monthOf(x.d||'')===MON).sort((a,b)=>String(a.d).localeCompare(String(b.d)));
+  const tot=all.reduce((a,x)=>a+(+x.amt||0),0);
+  let body;
+  if(t==='adv'){
+    const g={};all.forEach(x=>{(g[x.who]=g[x.who]||[]).push(x)});
+    body=Object.keys(g).sort((a,b)=>a.localeCompare(b,'ar')).map(w=>`<details><summary><span>${esc(w)}</span><span>${money(g[w].reduce((a,x)=>a+(+x.amt||0),0))}</span></summary><div style="padding:0 10px 10px"><table>${g[w].map(x=>`<tr><td>${esc(x.d)}</td><td>${money(x.amt)}</td><td class="mut">${esc(x.note||'')}</td><td><button class="btn red sm" data-del="${esc(x.id)}">✕</button></td></tr>`).join('')}</table></div></details>`).join('')||'<div class="card mut">لا يوجد</div>';
+  }else body=`<div class="card"><table>${all.map(x=>`<tr><td>${esc(x.d)}</td><td>${esc(x.t||x.note||'')}</td><td>${money(x.amt)}</td><td><button class="btn red sm" data-del="${esc(x.id)}">✕</button></td></tr>`).join('')||'<tr><td class="mut">لا يوجد</td></tr>'}</table></div>`;
+  const whos=[...new Set(I.adv.map(x=>x.who))];
+  $('#main').innerHTML=`<div class="card"><h3>${C.title}</h3><input type="month" id="mp" value="${MON}">
+  <div class="stat"><span>${C.tot}</span><span>${money(tot)}</span></div></div>
+  <div class="card"><div class="row" style="margin-bottom:8px"><input type="date" id="fd" value="${iso(new Date())}"><input type="number" inputmode="decimal" id="fa" placeholder="المبلغ"></div>
+  ${C.f.map(f=>`<input id="f_${f[0]}" placeholder="${f[1]}" ${f[3]?'list="dl"':''} style="margin-bottom:8px">`).join('')}
+  ${t==='adv'?`<datalist id="dl">${whos.map(w=>`<option value="${esc(w)}">`).join('')}</datalist>`:''}
+  <button class="btn" style="width:100%" id="fs">إضافة</button></div>${body}`;
+  $('#mp').onchange=e=>{if(e.target.value){MON=e.target.value;vEntries(t)}};
+  $('#fs').onclick=()=>{
+    const a=parseFloat($('#fa').value),d=$('#fd').value;if(!(a>0)||!d){toast('اكتب التاريخ والمبلغ');return}
+    const v={d,amt:a};for(const f of C.f)v[f[0]]=($('#f_'+f[0]).value||'').trim();
+    if(t==='exp'&&!v.t){toast('اكتب البيان');return}
+    if(t==='adv'&&!v.who){toast('اكتب اسم الشخص');return}
+    setKey(C.pre+'|'+uid(),v);MON=monthOf(d);vEntries(t);toast('اتسجل ✔');
+  };
+  $('#main').onclick=e=>{const b=e.target.closest('[data-del]');if(b&&confirm('حذف؟')){setKey(C.pre+'|'+b.dataset.del,null);vEntries(t)}};
+}
+
+/* ---- الطلاب ---- */
+function vStu(){
+  const I=idx(),q=norm(Q).split(' ').filter(Boolean),L=I.list.filter(s=>q.every(t=>s.id.includes(t)));
+  $('#main').innerHTML=`<div class="card"><h3>إضافة طالب</h3><div class="row"><input id="an" placeholder="اسم الطالب"><button class="btn fit" id="ab">إضافة</button></div>
+  <details style="margin-top:8px;box-shadow:none"><summary>لصق أسماء كتير مرة واحدة</summary><div style="padding:8px"><textarea id="bulk" placeholder="كل اسم في سطر"></textarea><button class="btn" style="width:100%;margin-top:6px" id="bb">إضافة الأسماء</button></div></details></div>
+  <div class="card"><div class="stat"><span>عدد الطلاب</span><span>${I.list.length}</span></div><input id="q" placeholder="ابحث..." value="${esc(Q)}">
+  <div id="sl" style="margin-top:6px">${L.map(s=>`<div class="stu" data-id="${esc(s.id)}"><div class="nm">${esc(s.n)}</div><button class="btn sec sm" data-ed="1">✎</button><button class="btn red sm" data-rm="1">🗑</button></div>`).join('')}</div></div>
+  ${I.dlist.length?`<details><summary><span>المحذوفين (${I.dlist.length})</span></summary><div style="padding:0 8px 8px">${I.dlist.map(s=>`<div class="stu" data-id="${esc(s.id)}"><div class="nm">${esc(s.n)}</div><button class="btn sec sm" data-rs="1">استرجاع</button></div>`).join('')}</div></details>`:''}`;
+  const add=(force)=>{const r=addStudent($('#an').value,{force});
+    if(r.r==='ok'){toast('اتضاف ✔');vStu()}
+    else if(r.r==='dup')toast('الاسم موجود بالفعل: '+r.n);
+    else if(r.r==='similar'){if(confirm('في اسم شبهه: '+r.sim.join(' / ')+'\nتضيفه برضه؟'))add(true)}
+    else toast('اكتب الاسم')};
+  $('#ab').onclick=()=>add(false);
+  $('#bb').onclick=()=>{
+    const lines=$('#bulk').value.split('\n').map(cleanName).filter(Boolean);let ok=0,dup=0,sim=[];
+    for(const l of lines){const r=addStudent(l,{force:true});if(r.r==='ok'){ok++;if(similar(l,norm(l)).length)sim.push(l)}else dup++}
+    toast('اتضاف '+ok+' — اتجاهل '+dup+' مكرر');
+    if(sim.length)alert('أسماء اتضافت وهي شبه أسماء تانية، راجعها:\n'+sim.slice(0,15).join('\n'));
+    vStu();
+  };
+  $('#q').oninput=e=>{Q=e.target.value;vStu();const i=$('#q');i.focus();i.setSelectionRange(Q.length,Q.length)};
+  $('#main').onclick=e=>{
+    const row=e.target.closest('.stu');if(!row||!row.dataset.id)return;const id=row.dataset.id,I=idx();
+    if(e.target.closest('[data-ed]')){const n=prompt('تعديل الاسم',I.stu[id].n);if(n!=null){const r=renameStudent(id,n);if(r==='dup')toast('الاسم ده موجود');else if(r==='ok')vStu()}}
+    else if(e.target.closest('[data-rm]')){if(confirm('حذف '+I.stu[id].n+'؟ (تقدر ترجعه من المحذوفين)')){delStudent(id);vStu()}}
+    else if(e.target.closest('[data-rs]')){restoreStudent(id);vStu()}
+  };
+}
+
+/* ============ الإعدادات (للمدير فقط) ============ */
+function b64e(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o))))}
+function b64d(s){return JSON.parse(decodeURIComponent(escape(atob(s))))}
+$('#setBtn').onclick=async()=>{
+  if(!CONN){settingsPanel();return}
+  if(ADMIN){settingsPanel();return}
+  const p=prompt('كلمة سر المدير');if(!p)return;
+  try{const r=await api('GET',{a:'auth',ap:p});if(r.admin){ADMIN=p;settingsPanel()}else toast('كلمة السر غلط')}
+  catch(e){toast('محتاج نت للتأكد من كلمة السر')}
+};
+function settingsPanel(){
+  const link=CONN?(window.KCFG?CONN.u:location.origin+location.pathname+'#c='+b64e({u:CONN.u,k:CONN.k})):'';
+  const box=modal(`<h3>⚙ الإعدادات</h3>
+  <div class="card" style="border:1px solid var(--line);box-shadow:none"><b>الاتصال بالشيت</b>
+    <input id="cu" placeholder="رابط السكربت (ينتهي بـ /exec)" value="${esc(CONN?CONN.u:'')}" style="margin:6px 0">
+    <input id="ck" placeholder="كود الفريق" value="${esc(CONN?CONN.k:'')}" style="margin-bottom:6px">
+    <button class="btn" id="cs" style="width:100%">حفظ الاتصال</button>
+    ${CONN?`<div class="mut" style="margin-top:8px">رابط المدرسين (ابعته لهم، بيفتح التطبيق جاهز):</div><input id="lk" readonly value="${esc(link)}"><button class="btn sec" id="cp" style="width:100%;margin-top:6px">نسخ الرابط</button>`:''}</div>
+  ${CONN?`<div class="card" style="border:1px solid var(--line);box-shadow:none"><b>المزامنة</b><div class="mut" id="stx">${esc(statusText())}</div><button class="btn sec" id="sn" style="width:100%;margin-top:6px">زامن الآن</button></div>
+  <div class="card" style="border:1px solid var(--line);box-shadow:none"><b>قيمة الاشتراك الشهري الافتراضية</b><div class="row" style="margin-top:6px"><input type="number" id="fe" value="${fee()}" placeholder="مثلاً 150"><button class="btn fit" id="fs2">حفظ</button></div></div>`:''}
+  <div class="card" style="border:1px solid var(--line);box-shadow:none"><b>نسخة احتياطية</b>
+    <button class="btn sec" id="bk" style="width:100%;margin:6px 0">تنزيل نسخة احتياطية</button>
+    <input type="file" id="bf" accept=".json"><div class="mut">استرجاع: اختار ملف النسخة (بيندمج مع الموجود من غير تكرار).</div></div>
+  <div class="card" style="border:1px solid var(--line);box-shadow:none"><b>مسح بيانات الجهاز ده</b><div class="mut">بيمسح النسخة المحلية وينزّل كل حاجة من الشيت من جديد (التعديلات اللي لسه ما اتبعتتش هتضيع).</div><button class="btn red" id="wp" style="width:100%;margin-top:6px">مسح وإعادة تحميل</button></div>
+  <button class="btn sec" id="cl" style="width:100%">إغلاق</button>`);
+  const g=s=>box.querySelector(s);
+  g('#cl').onclick=closeM;
+  g('#cs').onclick=async()=>{
+    let u=g('#cu').value.trim(),k=g('#ck').value.trim();if(!u||!k){toast('اكتب الرابط والكود');return}
+    CONN={u,k};SV('kconn',CONN);
+    try{const r=await api('GET',{a:'ping'});if(!r.ok)throw 0;toast('الاتصال تمام ✔');sync();closeM();settingsPanel()}
+    catch(e){toast('مش قادر يتصل — راجع الرابط والكود')}
+  };
+  if(CONN){
+    g('#cp').onclick=()=>{g('#lk').select();try{navigator.clipboard.writeText(link)}catch(e){document.execCommand('copy')}toast('اتنسخ')};
+    g('#sn').onclick=async()=>{g('#stx').textContent='بيزامن...';await sync();g('#stx').textContent=statusText()};
+    g('#fs2').onclick=()=>{const v=parseFloat(g('#fe').value);if(v>0){setKey('cfg|fee',{v});toast('اتحفظ');sync()}};
+  }
+  g('#bk').onclick=()=>{const b=new Blob([JSON.stringify({kashf:2,data:DB.data})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='نسخة-كشف-'+iso(new Date())+'.json';a.click()};
+  g('#bf').onchange=async e=>{
+    const f=e.target.files[0];if(!f)return;
+    try{const j=JSON.parse(await f.text());if(!j.data)throw 0;let n=0;
+      for(const k in j.data){const x=j.data[k],c=DB.data[k];if(!c||x.ts>c.ts){DB.data[k]=x;DB.dirty[k]=1;n++}}
+      IDX=null;save();schedSync();toast('اتسترجع '+n+' عنصر');closeM();refresh()}
+    catch(err){toast('الملف مش صالح')}
+  };
+  g('#wp').onclick=()=>{if(confirm('متأكد؟')){DB={data:{},dirty:{},cursor:0,off:DB.off};IDX=null;save();closeM();refresh();sync()}};
+}
+
+/* ============ البداية: اسم المدرس + رابط الاتصال + تثبيت ============ */
+function readHash(){
+  if(window.KCFG&&window.KCFG.u){CONN={u:window.KCFG.u,k:window.KCFG.k};SV('kconn',CONN);return}
+  const m=location.hash.match(/#c=([^&]+)/);
+  if(m){try{const o=b64d(m[1]);if(o.u&&o.k){CONN={u:o.u,k:o.k};SV('kconn',CONN)}}catch(e){}history.replaceState(null,'',location.pathname)}
+}
+function askName(force){
+  if(ME&&!force)return;
+  const box=modal(`<h3>اكتب اسمك</h3><div class="mut" style="margin-bottom:8px">هيتسجل جنب أي حاجة تعملها (حضور، اشتراك...).</div><input id="nm" placeholder="الاسم" value="${esc(ME)}"><button class="btn" id="ok" style="width:100%;margin-top:8px">حفظ</button>`);
+  box.querySelector('#ok').onclick=()=>{const v=cleanName(box.querySelector('#nm').value);if(!v){toast('اكتب اسمك');return}ME=v;SV('kname',ME);closeM();$('#meBtn').textContent='👤 '+ME}
+  ;box.parentElement.onclick=null;
+}
+$('#meBtn').onclick=()=>askName(true);
+let DEF=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();DEF=e;$('#instBtn').classList.remove('hide')});
+$('#instBtn').onclick=async()=>{if(DEF){DEF.prompt();await DEF.userChoice;DEF=null;$('#instBtn').classList.add('hide')}};
+$('#dotBtn').onclick=()=>{alert(statusText());sync()};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+readHash();
+$('#meBtn').textContent=ME?'👤 '+ME:'👤 اسمي';
+refresh();
+if(!ME)askName();
+sync();
+</script>
+</body>
+</html>
